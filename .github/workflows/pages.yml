@@ -23,8 +23,7 @@ jobs:
           PROXY_URL: ${{ vars.PROXY_URL }}
         run: |
           if [ -n "$PROXY_URL" ]; then
-            printf "window.APP_CONFIG = { proxyUrl: '%s' };
-" "$PROXY_URL" > config.js
+            printf "window.APP_CONFIG = { proxyUrl: '%s' };\n" "$PROXY_URL" > config.js
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
