@@ -17,3 +17,9 @@ Cal servir-la per HTTPS. Amb GitHub Pages (Settings → Pages → Source: *GitHu
 
 ## Desenvolupament
 `npx http-server .` i obre-la al navegador. El parser (`parser.js`) no té dependències.
+
+## Clau de Gemini compartida
+1. A GitHub: Settings → Secrets and variables → Actions → *New repository secret* → `GEMINI_API_KEY`.
+2. El workflow l'escriu a `config.js` en desplegar, així no queda al repositori ni a l'historial de git.
+3. **Important**: el `config.js` publicat és públic. A Google Cloud Console → Credencials, restringeix la clau
+   per *referrer HTTP* a `https://<usuari>.github.io/*` i limita-la a l'API *Generative Language*.

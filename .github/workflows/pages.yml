@@ -18,6 +18,13 @@ jobs:
       url: ${{ steps.d.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Injecta la clau de Gemini (secret GEMINI_API_KEY)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf "window.APP_CONFIG = { geminiKey: '%s' };\n" "$GEMINI_API_KEY" > config.js
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -145,9 +145,11 @@
   $('b-new').addEventListener('click', reset);
 
   // ---------- Entrada ----------
-  $('key').value = store.get('gkey', '');
+  const SHARED_KEY = (window.APP_CONFIG && window.APP_CONFIG.geminiKey) || '';
+  $('key').value = store.get('gkey', '') || SHARED_KEY;
   $('key').addEventListener('change', () => store.set('gkey', $('key').value.trim()));
   if (!$('key').value) $('cfg').open = true;
+  else if (SHARED_KEY && $('key').value === SHARED_KEY) $('cfg').querySelector('summary').textContent = '⚙ Motor d\'anàlisi: clau compartida activa';
   $('auto').checked = store.get('auto', false);
   $('auto').addEventListener('change', () => store.set('auto', $('auto').checked));
   $('b-text').addEventListener('click', () => { $('textbox').classList.toggle('hidden'); $('t-in').focus(); });
