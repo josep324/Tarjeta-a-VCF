@@ -1,4 +1,4 @@
-const CACHE = 'tarjeta-vcf-v6';
+const CACHE = 'tarjeta-vcf-v7';
 const SHELL = ['./', 'index.html', 'app.js', 'parser.js', 'config.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 const CDN = ['cdn.jsdelivr.net', 'unpkg.com'];
 

@@ -244,7 +244,7 @@
 
   async function geminiExtract(dataUrl, key) {
     const url = PROXY || `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-    const r = await fetch(url, {
+    const doFetch = () => fetch(url, {
       method: 'POST',
       headers: PROXY ? { 'Content-Type': 'application/json', 'x-access-code': store.get('code', '') }
         : { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -253,6 +253,13 @@
         generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA }
       })
     });
+    // Gemini a vegades respon 503/429 per saturació: reintenta amb espera creixent
+    let r = await doFetch();
+    for (let n = 1; n <= 3 && [429, 500, 503].includes(r.status); n++) {
+      progress(`Gemini saturat, reintentant (${n}/3)…`, null);
+      await new Promise((res) => setTimeout(res, 2000 * n));
+      r = await doFetch();
+    }
     if (r.status === 401 && PROXY) { store.set('code', ''); showLock('Codi incorrecte'); throw new Error('codi incorrecte'); }
     if (!r.ok) {
       let m = r.status + '';
