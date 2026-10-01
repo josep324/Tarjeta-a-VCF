@@ -18,8 +18,10 @@ Cal servir-la per HTTPS. Amb GitHub Pages (Settings → Pages → Source: *GitHu
 ## Desenvolupament
 `npx http-server .` i obre-la al navegador. El parser (`parser.js`) no té dependències.
 
-## Clau de Gemini compartida
-1. A GitHub: Settings → Secrets and variables → Actions → *New repository secret* → `GEMINI_API_KEY`.
-2. El workflow l'escriu a `config.js` en desplegar, així no queda al repositori ni a l'historial de git.
-3. **Important**: el `config.js` publicat és públic. A Google Cloud Console → Credencials, restringeix la clau
-   per *referrer HTTP* a `https://<usuari>.github.io/*` i limita-la a l'API *Generative Language*.
+## Codi d'accés (clau de Gemini protegida)
+La clau **no** va mai al front: viu en un Cloudflare Worker (`worker/`) que exigeix un codi d'accés.
+1. `cd worker && npx wrangler deploy` (canvia `ALLOWED_ORIGIN` a `wrangler.toml` per la teva URL de GitHub Pages).
+2. `npx wrangler secret put GEMINI_API_KEY` i `npx wrangler secret put ACCESS_CODES` (un o més codis separats per comes).
+3. A GitHub: Settings → Secrets and variables → Actions → *Variables* → `PROXY_URL` = URL del Worker.
+4. Per revocar l'accés, canvia `ACCESS_CODES`. Opcional: afegeix una regla de *rate limiting* al Worker a Cloudflare.
+Sense `PROXY_URL` l'app funciona amb la clau pròpia de cada usuari (camp «Motor d'anàlisi»).

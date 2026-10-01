@@ -1,1 +1,1 @@
-window.APP_CONFIG = { geminiKey: '' };
+window.APP_CONFIG = { proxyUrl: '' };

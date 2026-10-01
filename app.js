@@ -9,6 +9,7 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sense emmagatzematge */ } }
   };
 
+  const PROXY = ((window.APP_CONFIG && window.APP_CONFIG.proxyUrl) || '').replace(/\/$/, '');
   let contact = P.emptyContact();
   let worker = null;
 
@@ -145,11 +146,35 @@
   $('b-new').addEventListener('click', reset);
 
   // ---------- Entrada ----------
-  const SHARED_KEY = (window.APP_CONFIG && window.APP_CONFIG.geminiKey) || '';
-  $('key').value = store.get('gkey', '') || SHARED_KEY;
+  $('key').value = store.get('gkey', '');
   $('key').addEventListener('change', () => store.set('gkey', $('key').value.trim()));
-  if (!$('key').value) $('cfg').open = true;
-  else if (SHARED_KEY && $('key').value === SHARED_KEY) $('cfg').querySelector('summary').textContent = '⚙ Motor d\'anàlisi: clau compartida activa';
+  if (PROXY) $('cfg').classList.add('hidden');
+  else if (!$('key').value) $('cfg').open = true;
+
+  // ---------- Codi d'accés ----------
+  function showLock(msg) {
+    $('lock').classList.remove('hidden');
+    $('lock').style.display = 'flex';
+    $('lock-err').textContent = msg || '';
+    $('code').value = '';
+  }
+  async function tryUnlock(code) {
+    try {
+      const r = await fetch(PROXY + '/check', { method: 'POST', headers: { 'x-access-code': code } });
+      if (r.status === 401) return 'Codi incorrecte';
+      if (!r.ok) return 'Error del servidor (' + r.status + ')';
+      store.set('code', code);
+      $('lock').style.display = 'none';
+      return '';
+    } catch { return 'Sense connexió amb el servidor'; }
+  }
+  if (PROXY) {
+    $('b-unlock').addEventListener('click', async () => { $('lock-err').textContent = await tryUnlock($('code').value.trim()) || ''; });
+    $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('b-unlock').click(); });
+    const saved = store.get('code', '');
+    showLock('');
+    if (saved) tryUnlock(saved).then((m) => { if (m) showLock(m === 'Codi incorrecte' ? m : ''); });
+  }
   $('auto').checked = store.get('auto', false);
   $('auto').addEventListener('change', () => store.set('auto', $('auto').checked));
   $('b-text').addEventListener('click', () => { $('textbox').classList.toggle('hidden'); $('t-in').focus(); });
@@ -215,15 +240,19 @@
     'El nom de la persona no és el de l\'empresa (el logotip és l\'empresa). Les icones (telèfon fix, mòbil, sobre, ubicació) indiquen el tipus de cada línia: ' +
     'telèfon fix = WORK, mòbil = CELL. Conserva els números amb el prefix tal com surten.';
 
+
   async function geminiExtract(dataUrl, key) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    const url = PROXY || `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+    const r = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      headers: PROXY ? { 'Content-Type': 'application/json', 'x-access-code': store.get('code', '') }
+        : { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: dataUrl.split(',')[1] } }] }],
         generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA }
       })
     });
+    if (r.status === 401 && PROXY) { store.set('code', ''); showLock('Codi incorrecte'); throw new Error('codi incorrecte'); }
     if (!r.ok) {
       let m = r.status + '';
       try { m = (await r.json()).error.message; } catch { /* */ }
@@ -303,7 +332,7 @@
       $('thumb').src = thumbUrl;
       $('thumb').classList.remove('hidden');
       const key = $('key').value.trim();
-      if (key) {
+      if (PROXY || key) {
         try {
           progress('Analitzant la targeta amb Gemini…', null);
           const c = await geminiExtract(thumbUrl, key);

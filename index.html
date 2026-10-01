@@ -52,6 +52,14 @@ input[type=file]{display:none}
 </style>
 </head>
 <body>
+<div id="lock" class="hidden" style="position:fixed;inset:0;z-index:10;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:360px;width:100%">
+    <h2>🔒 Codi d'accés</h2>
+    <input id="code" type="password" autocomplete="off" placeholder="Codi">
+    <button class="primary" id="b-unlock" type="button" style="width:100%;margin-top:10px">Entra</button>
+    <div id="lock-err" class="err"></div>
+  </div>
+</div>
 <main>
   <h1>Targeta → VCF</h1>
   <p class="sub">Fes una foto, verifica les dades i desa el contacte.</p>

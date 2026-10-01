@@ -18,12 +18,13 @@ jobs:
       url: ${{ steps.d.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Injecta la clau de Gemini (secret GEMINI_API_KEY)
+      - name: Injecta l'URL del proxy (variable PROXY_URL)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PROXY_URL: ${{ vars.PROXY_URL }}
         run: |
-          if [ -n "$GEMINI_API_KEY" ]; then
-            printf "window.APP_CONFIG = { geminiKey: '%s' };\n" "$GEMINI_API_KEY" > config.js
+          if [ -n "$PROXY_URL" ]; then
+            printf "window.APP_CONFIG = { proxyUrl: '%s' };
+" "$PROXY_URL" > config.js
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
