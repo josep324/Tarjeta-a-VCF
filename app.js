@@ -352,5 +352,10 @@
   }
 
   renderHistory();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Si una versió nova pren el control, recarrega perquè es vegi de seguida
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) location.reload(); });
+  }
 })();
