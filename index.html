@@ -71,6 +71,11 @@ input[type=file]{display:none}
     </div>
     <img id="thumb" class="hidden" alt="Targeta">
     <div id="prog" class="hidden"><progress id="bar" max="100" value="0"></progress><div class="status" id="pstat"></div></div>
+    <details id="cfg"><summary>⚙ Motor d'anàlisi (IA de Google)</summary>
+      <label for="key">Clau API de Gemini (gratuïta a aistudio.google.com/apikey)</label>
+      <input id="key" type="password" autocomplete="off" placeholder="AIza…">
+      <div class="status">Es desa només en aquest mòbil. La foto s'envia a Google per analitzar-la. Sense clau s'usa l'OCR local (menys precís).</div>
+    </details>
     <div class="sw"><input type="checkbox" id="auto"><label for="auto" style="margin:0;color:var(--ink);font-size:.95rem">Desa automàticament en acabar l'extracció (sense verificar)</label></div>
   </section>
 

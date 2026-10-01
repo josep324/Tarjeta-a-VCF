@@ -145,6 +145,9 @@
   $('b-new').addEventListener('click', reset);
 
   // ---------- Entrada ----------
+  $('key').value = store.get('gkey', '');
+  $('key').addEventListener('change', () => store.set('gkey', $('key').value.trim()));
+  if (!$('key').value) $('cfg').open = true;
   $('auto').checked = store.get('auto', false);
   $('auto').addEventListener('change', () => store.set('auto', $('auto').checked));
   $('b-text').addEventListener('click', () => { $('textbox').classList.toggle('hidden'); $('t-in').focus(); });
@@ -172,9 +175,13 @@
   }
 
   async function handleText(text, ocrText) {
-    contact = P.parseContact(text);
+    await handleContact(P.parseContact(text), ocrText != null ? ocrText : text);
+  }
+
+  async function handleContact(c, ocrText) {
+    contact = c;
     fillForm(contact);
-    $('ocr').textContent = ocrText != null ? ocrText : text;
+    $('ocr').textContent = ocrText;
     $('s-form').classList.remove('hidden');
     $('s-save').classList.remove('hidden');
     $('saved').textContent = '';
@@ -184,6 +191,53 @@
       $('saved').textContent += ' (desat automàticament)';
     }
     $('s-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- Gemini (visió) ----------
+  const GEMINI_MODEL = 'gemini-2.5-flash';
+  const S = (d) => ({ type: 'STRING', description: d });
+  const SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+      given: S('Nom de pila'), family: S('Cognoms'), org: S('Empresa/organització'),
+      title: S('Càrrec o posició tal com surt a la targeta (si hi ha dos idiomes, uneix-los amb " / ")'),
+      phones: { type: 'ARRAY', items: { type: 'OBJECT', properties: { type: { type: 'STRING', enum: ['CELL', 'WORK', 'HOME', 'FAX'] }, value: S('Número tal com està escrit') }, required: ['type', 'value'] } },
+      emails: { type: 'ARRAY', items: { type: 'STRING' } },
+      urls: { type: 'ARRAY', items: { type: 'STRING' } },
+      street: S('Carrer i número'), postal: S('Codi postal'), city: S('Ciutat'), region: S('Província/regió'), country: S('País'),
+      note: S('Qualsevol altra dada rellevant (xarxes socials, departament, etc.)')
+    }
+  };
+  const PROMPT = 'Aquesta és una foto d\'una targeta de visita. Extreu totes les dades de contacte que hi siguin explícites. ' +
+    'No infereixis ni inventis res: si un camp no hi és, deixa\'l buit (cadena buida o llista buida). ' +
+    'El nom de la persona no és el de l\'empresa (el logotip és l\'empresa). Les icones (telèfon fix, mòbil, sobre, ubicació) indiquen el tipus de cada línia: ' +
+    'telèfon fix = WORK, mòbil = CELL. Conserva els números amb el prefix tal com surten.';
+
+  async function geminiExtract(dataUrl, key) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: dataUrl.split(',')[1] } }] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA }
+      })
+    });
+    if (!r.ok) {
+      let m = r.status + '';
+      try { m = (await r.json()).error.message; } catch { /* */ }
+      throw new Error(m);
+    }
+    const j = await r.json();
+    const txt = j.candidates && j.candidates[0] && j.candidates[0].content.parts.map((p) => p.text || '').join('');
+    if (!txt) throw new Error('resposta buida');
+    const g = JSON.parse(txt);
+    const c = P.emptyContact();
+    c.given = g.given || ''; c.family = g.family || ''; c.org = g.org || ''; c.title = g.title || ''; c.note = g.note || '';
+    c.phones = (g.phones || []).filter((p) => p.value);
+    c.emails = (g.emails || []).filter(Boolean);
+    c.urls = (g.urls || []).filter(Boolean).map((u) => (/^https?:\/\//i.test(u) ? u : 'https://' + u));
+    c.adr = { street: g.street || '', city: g.city || '', region: g.region || '', postal: g.postal || '', country: g.country || '' };
+    return c;
   }
 
   function loadScript(src) {
@@ -226,19 +280,11 @@
     cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
     const ctx = cv.getContext('2d');
     ctx.drawImage(src, 0, 0, cv.width, cv.height);
-    const thumbUrl = cv.toDataURL('image/jpeg', 0.7);
+    const thumbUrl = cv.toDataURL('image/jpeg', 0.85);
     const img = ctx.getImageData(0, 0, cv.width, cv.height);
     const d = img.data;
-    let min = 255, max = 0;
     for (let i = 0; i < d.length; i += 4) {
-      const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
-      d[i] = d[i + 1] = d[i + 2] = g;
-      if (g < min) min = g; if (g > max) max = g;
-    }
-    const range = Math.max(1, max - min);
-    for (let i = 0; i < d.length; i += 4) {
-      const v = ((d[i] - min) * 255) / range;
-      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i] = d[i + 1] = d[i + 2] = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
     }
     ctx.putImageData(img, 0, 0);
     return { canvas: cv, thumbUrl };
@@ -254,6 +300,17 @@
       const { canvas, thumbUrl } = await prepare(file);
       $('thumb').src = thumbUrl;
       $('thumb').classList.remove('hidden');
+      const key = $('key').value.trim();
+      if (key) {
+        try {
+          progress('Analitzant la targeta amb Gemini…', null);
+          const c = await geminiExtract(thumbUrl, key);
+          await handleContact(c, '(analitzat amb Gemini)');
+          return;
+        } catch (err) {
+          progress('Gemini ha fallat (' + (err.message || err) + '). Provant OCR local…', null);
+        }
+      }
       const w = await getWorker();
       const { data } = await w.recognize(canvas);
       await handleText(data.text, data.text);
