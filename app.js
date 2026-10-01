@@ -201,11 +201,12 @@
     $('bar').classList.toggle('hidden', pct == null);
   }
 
-  async function handleText(text, ocrText) {
-    await handleContact(P.parseContact(text), ocrText != null ? ocrText : text);
+  async function handleText(text, ocrText, engine) {
+    await handleContact(P.parseContact(text), ocrText != null ? ocrText : text, engine || 'Text');
   }
 
-  async function handleContact(c, ocrText) {
+  async function handleContact(c, ocrText, engine) {
+    $('engine').textContent = 'Motor utilitzat: ' + engine;
     contact = c;
     fillForm(contact);
     $('ocr').textContent = ocrText;
@@ -336,15 +337,27 @@
         try {
           progress('Analitzant la targeta amb Gemini…', null);
           const c = await geminiExtract(thumbUrl, key);
-          await handleContact(c, '(analitzat amb Gemini)');
+          await handleContact(c, '(analitzat amb Gemini)', 'Gemini');
           return;
         } catch (err) {
-          progress('Gemini ha fallat (' + (err.message || err) + '). Provant OCR local…', null);
+          // No canviem en silenci a l'OCR local: mostrem l'error i deixem triar
+          progress('⚠ Gemini ha fallat: ' + (err.message || err), null);
+          $('pstat').className = 'status err';
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'add'; b.textContent = 'Provar amb OCR local (menys precís)';
+          b.addEventListener('click', async () => {
+            b.remove(); $('pstat').className = 'status';
+            const w2 = await getWorker();
+            const { data: d2 } = await w2.recognize(canvas);
+            await handleText(d2.text, d2.text, 'OCR local');
+          });
+          $('prog').append(b);
+          return;
         }
       }
       const w = await getWorker();
       const { data } = await w.recognize(canvas);
-      await handleText(data.text, data.text);
+      await handleText(data.text, data.text, 'OCR local');
     } catch (err) {
       progress('Error: ' + (err && err.message ? err.message : err), null);
       $('pstat').className = 'status err';
