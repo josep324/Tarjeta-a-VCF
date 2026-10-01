@@ -1,7 +1,7 @@
 // Cloudflare Worker: protegeix la clau de Gemini darrere d'un codi d'accés.
 // Secrets/variables: GEMINI_API_KEY (secret), ACCESS_CODES (secret, separats per comes),
 // ALLOWED_ORIGIN (p. ex. https://usuari.github.io — sense barra final).
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 const MAX_BODY = 6 * 1024 * 1024;
 
 function safeEqual(a, b) {

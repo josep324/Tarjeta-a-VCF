@@ -222,7 +222,7 @@
   }
 
   // ---------- Gemini (visió) ----------
-  const GEMINI_MODEL = 'gemini-2.5-flash';
+  const GEMINI_MODEL = 'gemini-3.8-flash';
   const S = (d) => ({ type: 'STRING', description: d });
   const SCHEMA = {
     type: 'OBJECT',
